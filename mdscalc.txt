@@ -1,0 +1,93 @@
+
+R version 3.3.1 (2016-06-21) -- "Bug in Your Hair"
+Copyright (C) 2016 The R Foundation for Statistical Computing
+Platform: x86_64-w64-mingw32/x64 (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> data <- read.table("C:/XAMPP/htdocs/project-folder/lab5/sixcolsnew.csv", header=T, sep=",")
+> cor_matrix <- matrix(NA, ncol=6, nrow=6)
+> colnames(cor_matrix) <- rownames(cor_matrix) <- names(data)
+> for(i in colnames(data)) {
++ for(j in colnames(data)) {
++ cor_matrix[i,j] <- cor.test(data[,i],data[,j])$estimate
++ }
++ }
+> cor_matrix
+            w_1stIn   l_1stIn  w_2ndWon  l_2ndWon w_bpFaced w_bpSaved
+w_1stIn   1.0000000 0.8202867 0.5625460 0.7019826 0.6104950 0.5327295
+l_1stIn   0.8202867 1.0000000 0.6731801 0.6197986 0.4959234 0.4013822
+w_2ndWon  0.5625460 0.6731801 1.0000000 0.6318104 0.5013167 0.4575433
+l_2ndWon  0.7019826 0.6197986 0.6318104 1.0000000 0.4022118 0.3030686
+w_bpFaced 0.6104950 0.4959234 0.5013167 0.4022118 1.0000000 0.9392600
+w_bpSaved 0.5327295 0.4013822 0.4575433 0.3030686 0.9392600 1.0000000
+> write.table(cor_matrix, file="clipboard", sep="\t")
+> data <- read.table("C:/Yael/Desktop/sixcors.csv", sep=",", header=T)
+Error in file(file, "rt") : cannot open the connection
+In addition: Warning message:
+In file(file, "rt") :
+  cannot open file 'C:/Yael/Desktop/sixcors.csv': No such file or directory
+> data <- read.table("C:/Users/Yael/Desktop/sixcors.csv", sep=",", header=T)
+> data_frame <- data[,2:7]
+> new_cor <- apply(data_frame,1, function(x) 1-abs(x))
+> new_cor
+               [,1]      [,2]      [,3]      [,4]       [,5]       [,6]
+w_1stIn   0.0000000 0.1797133 0.4374540 0.2980174 0.38950504 0.46727049
+l_1stIn   0.1797133 0.0000000 0.3268199 0.3802014 0.50407664 0.59861780
+w_2ndWon  0.4374540 0.3268199 0.0000000 0.3681896 0.49868327 0.54245674
+l_2ndWon  0.2980174 0.3802014 0.3681896 0.0000000 0.59778824 0.69693139
+w_bpFaced 0.3895050 0.5040766 0.4986833 0.5977882 0.00000000 0.06073996
+w_bpSaved 0.4672705 0.5986178 0.5424567 0.6969314 0.06073996 0.00000000
+> row.names(new_cor) <- data[,1]
+> row.names(new_cor)
+[1] "w_1stIn"   "l_1stIn"   "w_2ndWon"  "l_2ndWon"  "w_bpFaced" "w_bpSaved"
+> new_cor <- new_cor[,-1]
+> fit <- cmdscale(data, eig=T, k=2)
+Error in cmdscale(data, eig = T, k = 2) : 
+  distances must be result of 'dist' or a square matrix
+In addition: Warning message:
+In Ops.factor(left, right) : ‘^’ not meaningful for factors
+> fit <- cmdscale(new_cor, eig=T, k=2)
+Error in cmdscale(new_cor, eig = T, k = 2) : 
+  distances must be result of 'dist' or a square matrix
+> new_cor <- apply(data_frame,1, function(x) 1-abs(x))
+> new_cor
+               [,1]      [,2]      [,3]      [,4]       [,5]       [,6]
+w_1stIn   0.0000000 0.1797133 0.4374540 0.2980174 0.38950504 0.46727049
+l_1stIn   0.1797133 0.0000000 0.3268199 0.3802014 0.50407664 0.59861780
+w_2ndWon  0.4374540 0.3268199 0.0000000 0.3681896 0.49868327 0.54245674
+l_2ndWon  0.2980174 0.3802014 0.3681896 0.0000000 0.59778824 0.69693139
+w_bpFaced 0.3895050 0.5040766 0.4986833 0.5977882 0.00000000 0.06073996
+w_bpSaved 0.4672705 0.5986178 0.5424567 0.6969314 0.06073996 0.00000000
+> write.csv(new_cor, file="C:/Users/Yael/Desktop/halfmds.csv")
+> data <- read.table("C:/Users/Yael/Desktop/halfmds.csv", sep=",", header=T)
+> row.names(data) <- data[,1]
+> row.names(data)
+[1] "w_1stIn"   "l_1stIn"   "w_2ndWon"  "l_2ndWon"  "w_bpFaced" "w_bpSaved"
+> data <- data[,-1]
+> fit <- cmdscale(data, eig=T, k=2)
+> x <- fit$points[,1]
+> y <- fit$points[,2]
+> data_frame <- data.frame(x=x, y=y)
+> data_frame
+                    x           y
+w_1stIn   -0.06886221 -0.18085474
+l_1stIn   -0.17779315 -0.05551219
+w_2ndWon  -0.12335095  0.25418237
+l_2ndWon  -0.29758375 -0.02049634
+w_bpFaced  0.28798299 -0.02087690
+w_bpSaved  0.37960708  0.02355780
+> write.table(data_frame, file="clipboard", sep="\t")
+> 

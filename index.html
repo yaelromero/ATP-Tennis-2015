@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <title>ATP Tennis 2015 D3 Visualization</title>
+        <script type="text/javascript" src="http://d3js.org/d3.v3.js"></script>
+        <script type="text/javascript" src="http://d3js.org/d3.v3.min.js"></script>
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+        <link href="https://fonts.googleapis.com/css?family=Open+Sans" rel="stylesheet">
+        <script src="http://labratrevenge.com/d3-tip/javascripts/d3.tip.v0.6.3.js"></script>
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.2/css/bootstrap.min.css">
+        <script src= "https://maxcdn.bootstrapcdn.com/bootstrap/3.3.2/js/bootstrap.min.js"></script>
+        <script src="crossfilter.v1.min.js"></script>
+
+      <style type="text/css">
+
+        p {
+          font-family: 'Open Sans';
+          font-size: 16px;
+        }
+
+        h1 {
+            font-family: 'Open Sans';
+            font-size: 18px;
+            margin-right: 25px;
+            display:inline;
+        }
+        
+        h2 {
+            font-family: 'Open Sans';
+            font-size: 16px;
+            margin-left:640px;
+            display:inline;
+        }
+
+        svg {
+            font: 10px sans-serif;
+            padding: 10px;
+        }
+
+        .axis,
+        .frame {
+            shape-rendering: crispEdges;
+        }
+
+        .axis line {
+            stroke: #ddd;
+        }
+
+        .axis path {
+            display: none;
+        }
+
+        .axis text {
+                font-family: 'Open Sans';
+                font-size: 11px;
+                text-shadow: 0 1px 0 #fff, 1px 0 0 #fff, 0 -1px 0 #fff, -1px 0 0 #fff;
+            }
+
+        /*.axis path,
+      .axis line {
+        fill: none;
+        stroke: black;
+        shape-rendering: crispEdges;
+      }*/
+
+        .background path {
+          fill: none;
+          stroke: #ddd;
+          shape-rendering: crispEdges;
+        }
+
+        .foreground path {
+            fill: none;
+            stroke: #316DA8;
+        }
+
+        .brush .extent {
+            fill-opacity: .3;
+            stroke: #fff;
+            shape-rendering: crispEdges;
+        }
+
+        .axis text {
+          font-family: 'Open Sans';
+          font-size: 9px;
+        }
+
+        .cell text {
+            font-weight: bold;
+            text-transform: capitalize;
+        }
+
+        .frame {
+            fill: none;
+            stroke: #aaa;
+        }
+
+        circle {
+            fill-opacity: .7;
+        }
+
+        circle.hidden {
+          fill: #ccc !important;
+        }
+
+        .extent {
+          fill: #000;
+          fill-opacity: .125;
+          stroke: #fff;
+        }
+
+        /* General toolbar and tooltips */
+
+        #toolbar {
+          background-color: #316DA8;
+          padding-top: 5px;
+          padding-bottom: 5px;
+          padding-left: 15px;
+        }
+
+        input[type="button"] {
+          font-size:14px;
+          font-family: 'Open Sans';
+        }
+
+        select[type="dropdown"] {
+          font-size:14px;
+          font-family: 'Open Sans';
+        }
+
+        .d3-tip {
+          line-height: 1;
+          font-weight: normal;
+          padding: 12px;
+          font-size:12px;
+          font-family:'Open Sans';
+          background: rgba(112, 128, 144, 0.95);
+          color: #fff;
+          border-radius: 2px;
+        }
+
+        /* Small triange */
+        .d3-tip:after {
+          box-sizing: border-box;
+          display: inline;
+          font-size: 10px;
+          width: 100%;
+          line-height: 1;
+          color: rgba(112, 128, 144, 0.95);
+          content: "\25BC";
+          position: absolute;
+          text-align: center;
+        }
+
+        /* Adjustment for other orientation */
+        .d3-tip.n:after {
+          margin: -1px 0 0 0;
+          top: 100%;
+          left: 0;
+        }
+
+        .tooltip {
+          position: absolute;
+          width: 200px;
+          height: 28px;
+          pointer-events: none;
+          font-size:10px;
+          font-family: 'Open Sans';
+        }
+
+      </style>
+
+    </head>
+
+    <body>
+
+    <div class="container-fluid">
+      <div class="row">
+        <div class="col-md-12" id="toolbar">
+          <h1 id="h1">ATP Tennis Results 2015</h1>
+
+          
+
+          <h2 id = "h2">Variables (bar chart):</h2>
+          <select id="dropdown" type="dropdown">
+            <option value="" selected disabled>Choose a Variable</option>
+          </select>
+        </div>
+
+        <div class="col-md-6" id="scatterarea"></div>
+        <div class="col-md-6">
+      
+          <div class="row">
+            <div class="col-md-8" id="pararea"></div>
+          </div>
+
+          <div class="row">
+            <div class="col-md-8" id="mdsarea"></div>
+          </div>
+
+          <div class="row">
+            <div class="col-md-8" id="bararea"></div>
+          </div>
+        </div>
+
+
+    <script type="text/javascript">
+
+      var selectedDims;
+      var selectedRangeDims;
+      var selectedRanges;
+
+      var attributes = ["w_1stIn", "l_1stIn", "w_2ndWon", "l_2ndWon", "w_bpFaced", "w_bpSaved"];
+
+      var descriptions = ["Winner 1st In", "Loser 1st In", "Winner 2nd Won", "Loser 2nd Won",
+      "Winner Break Points Faced", "Winner Break Points Saved"];
+
+      // Create a dropdown, populate it using the array elements
+
+      var select = document.getElementById("dropdown");
+      for(var i = 0; i < attributes.length; i++) {
+        var opt = descriptions[i];
+        var newOpt = document.createElement("option");
+        newOpt.textContent = opt;
+        newOpt.value = attributes[i];
+        select.appendChild(newOpt);
+      }
+
+      // Trigger events for the dropdown and button
+
+      d3.select('#dropdown').on('change', function() {
+        var newData = d3.select(this).property('value');
+        var text = this.options[this.selectedIndex].text;
+        drawBar(newData, text);
+      });
+
+      d3.select("input").on('click', function() {
+        var selection = d3.select('#dropdown').property('value');
+        if(selection != "Select a Variable") {
+        var index = 0;
+        for(i = 0; i < attributes.length; i++) {
+          if(attributes[i] == selection) {
+          index = i;
+          break;
+          }
+        }
+        if(index == 5)
+          index = 0;
+        else
+          index = index + 1;
+        var newData = attributes[index];
+        var text = descriptions[index];
+        $("#dropdown").val(newData);
+        drawBar(newData, text);
+        }
+      });
+
+      var width = 460;
+      var size = 100;
+      var paddingS = 8;
+
+      var y = d3.scale.linear()
+            .range([size-paddingS/2, paddingS/2]);
+
+      var x = d3.scale.linear()
+            .range([paddingS/2, size-paddingS/2]);
+
+      var xAxis = d3.svg.axis()
+                .scale(x)
+                .orient("bottom")
+                .ticks(6);
+
+      var yAxis = d3.svg.axis()
+                .scale(y)
+                .orient("left")
+                .ticks(6);
+
+      drawScatMat();
+
+      function drawScatMat() {
+        d3.csv('sixcolsnew.csv', function(error, data) {
+          var domainByAttr = {};
+          var attrs = d3.keys(data[0]);
+          var n = attrs.length;
+          var notSelected = [];
+          var canvas;
+
+          // First check if the shit is brushed or not
+          if(selectedDims != undefined && selectedRanges != undefined) {
+            notSelected = [];
+            domainByAttr = {};
+            d3.select("#scattersvg").remove();
+            canvas = d3.select("#scatterarea").append("svg")
+                      .attr("id", "scattersvg")
+                      .attr("width", size*n + paddingS + 8)
+                      .attr("height", size*n + paddingS + 30)
+                      .append("g")
+                      .attr("transform", "translate(" + paddingS + "," + 0 + ")");
+            // keep list of the dims that are not selected
+            for(i = 0; i < attrs.length; i++) {
+              for(j = 0; j < selectedDims.length; j++) {
+                if(attrs[i] != selectedDims[j]) {
+                  notSelected.push(attrs[i]);
+                }
+              }
+            }
+            // is brushed
+            // need to get data points within the ranges
+            // selectedDims is array of var names
+            // selectedRanges is the array of arrays (each array holds min and max)
+            for(i = 0; i < selectedDims.length; i++) {
+              domainByAttr[selectedDims[i]] = ([selectedRanges[i][0], selectedRanges[i][1]]);
+            }
+
+            notSelected.forEach(function(attr) {
+              domainByAttr[attr] = ([d3.min(data, function(d) {return +d[attr];}), d3.max(data, function(d) {return +d[attr];})]);
+            });
+            console.log(domainByAttr);
+          }
+          else {
+            canvas = d3.select("#scatterarea").append("svg")
+                      .attr("id", "scattersvg")
+                      .attr("width", size*n + paddingS + 8)
+                      .attr("height", size*n + paddingS + 30)
+                      .append("g")
+                      .attr("transform", "translate(" + paddingS + "," + 0 + ")");
+          attrs.forEach(function(attr) {
+              domainByAttr[attr] = ([d3.min(data, function(d) {return +d[attr];}), d3.max(data, function(d) {return +d[attr];})]);
+          });
+        }
+
+          xAxis.tickSize(size * n);
+          yAxis.tickSize(-size * n);
+
+          var brush = d3.svg.brush()
+                      .x(x)
+                      .y(y)
+                      .on("brushstart", brushstart)
+                      .on("brush", brushmove)
+                      .on("brushend", brushend);
+
+          // var canvas = d3.select("#scatterarea").append("svg")
+          //             .attr("id", "scattersvg")
+          //             .attr("width", size*n + paddingS + 8)
+          //             .attr("height", size*n + paddingS + 30)
+          //             .append("g")
+          //             .attr("transform", "translate(" + paddingS + "," + 0 + ")");
+
+          canvas.selectAll(".x.axis")
+             .data(attrs)
+             .enter().append("g")
+             .attr("class", "x axis")
+             .attr("transform", function(d, i) { return "translate(" + (n - i - 1) * size + ",0)"; })
+             .each(function(d) { x.domain(domainByAttr[d]); d3.select(this).call(xAxis); });
+
+          canvas.selectAll(".y.axis")
+             .data(attrs)
+             .enter().append("g")
+             .attr("class", "y axis")
+             .attr("transform", function(d, i) { return "translate(0," + i * size + ")"; })
+             .each(function(d) { y.domain(domainByAttr[d]); d3.select(this).call(yAxis); });
+
+          var cell = canvas.selectAll(".cell")
+                        .data(cross(attrs,attrs))
+                        .enter().append("g")
+                        .attr("class", "cell")
+                        .attr("transform", function(d) { return "translate(" + (n - d.i - 1) * size + "," + d.j * size + ")"; })
+                        .each(plot);
+
+          // Diagonal cell names
+          cell.filter(function(d) { return d.i === d.j; }).append("text")
+                                                          .attr("x", paddingS)
+                                                          .attr("y", paddingS)
+                                                          .attr("dy", ".71em")
+                                                          .text(function(d) { return d.x; });
+          cell.call(brush);
+
+          function plot(p) {
+              var cell = d3.select(this);
+
+              x.domain(domainByAttr[p.x]);
+              y.domain(domainByAttr[p.y]);
+
+              cell.append("rect")
+                  .attr("class", "frame")
+                  .attr("x", paddingS / 2)
+                  .attr("y", paddingS / 2)
+                  .attr("width", size - paddingS)
+                  .attr("height", size - paddingS);
+
+              cell.selectAll("circle")
+                  .data(data)
+                  .enter().append("circle")
+                  .attr("cx", function(d) { return x(d[p.x]); })
+                  .attr("cy", function(d) { return y(d[p.y]); })
+                  .attr("r", 1.2)
+                  .style("fill", "#E86189")
+
+          }
+
+          var brushCell;
+
+          // Clear the previously-active brush, if any.
+          function brushstart(p) {
+            if (brushCell !== this) {
+              d3.select(brushCell).call(brush.clear());
+              x.domain(domainByAttr[p.x]);
+              y.domain(domainByAttr[p.y]);
+              brushCell = this;
+            }
+          }
+
+          // Highlight the selected circles.
+          function brushmove(p) {
+            var e = brush.extent();
+            canvas.selectAll("circle").classed("hidden", function(d) {
+              return e[0][0] > d[p.x] || d[p.x] > e[1][0]
+                  || e[0][1] > d[p.y] || d[p.y] > e[1][1];
+            });
+          }
+
+          // If the brush is empty, select all circles.
+          function brushend() {
+            if (brush.empty()) canvas.selectAll(".hidden").classed("hidden", false);
+          }
+
+        });
+      }
+
+      function cross(a, b) {
+        var c = [], n = a.length, m = b.length, i, j;
+        for (i = -1; ++i < n;) for (j = -1; ++j < m;) c.push({x: a[i], i: i, y: b[j], j: j});
+        return c;
+      }
+
+      // BAR CHART 
+
+      var width = 500;
+      var height = 210;
+      var padding = 25;
+      var marginBottom = 10;
+
+      var title = d3.select("#bararea").append("p")
+                  .attr("id", "bartitle")
+                  .text();
+
+      var canvas = d3.select("#bararea").append("svg")
+        .attr("width", width)
+        .attr("height", height + padding)
+        .append("g")
+          .attr("transform", "translate(" + padding + "," + 0 + ")");
+
+      drawBar("w_1stIn", "Winner 1st In");
+      $("#dropdown").val("w_1stIn");
+
+      function drawBar(newData, text) {
+        d3.csv('sixcolsnew.csv', function(error, data) {
+          var varMap = data.map(function (c) {
+          return +c[newData];
+        });
+
+          if(selectedRangeDims != undefined) {
+            for(i = 0; i < varMap.length; i++) {
+              if(varMap[i] < selectedRangeDims[0] || varMap[i] > selectedRangeDims[1]) {
+                delete varMap[i];
+              }
+            }
+          }
+
+        var varHist = d3.layout.histogram()
+          .bins(15)
+          (varMap);
+    
+        var y = d3.scale.linear()
+            .domain([d3.max(varHist.map(function(i) { return i.length; })) + 50, 0])
+            .range([0, height]);
+
+        var x = d3.scale.linear()
+            .domain([d3.min(varMap), d3.max(varMap)])
+            .range([0, width-padding]);
+
+        var color = d3.scale.linear()
+              .domain([d3.min(varMap), d3.max(varMap)])
+              .range(["#FFA655", "#E86189"]);
+
+        var xValues = varHist.map(function(d){return d.x;});
+        xValues = d3.set(xValues).values(); 
+
+        var xAxis = d3.svg.axis()
+              .scale(x)
+              .orient("bottom")
+              .tickValues(xValues);
+
+        var yAxis = d3.svg.axis()
+              .scale(y)
+              .orient("left")
+
+        var tip = d3.tip()
+              .attr('class', 'd3-tip')
+              .offset([-30, 0])
+              .html(function(d) {
+              return "<strong>Frequency:</strong> <span style='color:wheat'>" + d.y + "</span>";
+              });
+
+        canvas.call(tip);
+
+        var yGroup = canvas.append("g")
+              .attr("class", "y axis")
+              .attr("transform", "translate(-1" + 0 + ")")
+        
+        canvas.select(".y.axis").transition().duration(300).call(yAxis);
+
+        var xGroup = canvas.append("g")
+              .attr("class", "x axis")
+              .attr("transform", "translate(0," + 205 + ")")
+        
+        canvas.select(".x.axis").transition().duration(300).call(xAxis);
+
+        var varHistBars = canvas.selectAll("rect")
+                    .data(varHist);
+
+        varHistBars.exit().remove();
+
+        varHistBars.enter()
+               .append("rect")
+               .attr("id", function(d, i) {return 'bar' + i})
+               .attr("fill", function(d) {return color(d.x);})
+               .attr("transform", "translate(2.5," + 0+ ")");
+
+        varHistBars.transition()
+          .attr("x", function(d) { return x(d.x)})
+          .attr("y", function(d) {return y(d.y); })
+          .attr("width", (x.range()[1] - x.range()[0])/ varHist.length - 5)
+          .attr("height", function (d) { return height - y(d.y); })
+
+        varHistBars
+          .on('mouseover', function(d) {
+          tip.show(d); 
+          d3.select(this).attr("width", ((x.range()[1] - x.range()[0])/ varHist.length) - 3);
+          d3.select(this).attr("height", function (d) { return (height - y(d.y)) + 20});
+          d3.select(this).attr("transform", "translate(1.5," +-20+ ")");
+          d3.select(this).attr("fill", "crimson");
+          })
+          .on('mouseout', function(d) {
+          tip.hide(d);
+          d3.select(this).attr("width", (x.range()[1] - x.range()[0])/ varHist.length - 5);
+          d3.select(this).attr("height", function (d) { return height - y(d.y); });
+          d3.select(this).attr("transform", "translate(0," + 0 + ")")
+          d3.select(this).attr("fill", function(d) {return color(d.x);});
+          d3.select(this).attr("transform", "translate(2.5," +0+ ")");
+          });
+
+          d3.selectAll("#bartitle").transition().text(text);
+        })
+      };
+
+      // MDS PLOT
+
+      var title2 = d3.select("#mdsarea").append("p")
+                   .attr("id", "mdstitle")
+                   .text();
+
+      var canvas2 = d3.select("#mdsarea").append("svg")
+        .attr("id", "mdssvg")
+        .attr("width", width)
+        .attr("height", height + padding)
+        .append("g")
+          .attr("transform", "translate(" + padding + "," + marginBottom + ")");
+
+      drawMDS();
+
+      function drawMDS() {
+
+      d3.csv('sixmds.csv', function(error, data) {
+        data.forEach(function(d) {
+          d["var"] = d["var"];
+          d["x"] = +d["x"];
+          d["y"] = +d["y"];
+        });
+        var newdata;
+        if(selectedDims != undefined) {
+          d3.select("#mdssvg").remove();
+          canvas2 = d3.select("#mdsarea").append("svg")
+                    .attr("id", "mdssvg")
+                    .attr("width", width)
+                    .attr("height", height + padding)
+                    .append("g")
+                    .attr("transform", "translate(" + padding + "," + marginBottom + ")");
+          newdata = [];
+          var yo = data.map(function(o) {return o["var"]});
+          for(i = 0; i < yo.length; i++) {
+            for(j = 0; j < selectedDims.length; j++) {
+              if(yo[i] === selectedDims[j]) {
+                newdata.push(data[i]);
+              }
+            }
+          }
+        }
+        else {
+          newdata = data;
+        }
+
+        // Set up the x-axis
+        var xValue = function(d) {return d["x"];};
+        var xScale = d3.scale.linear().range([0, width - 2*padding]);
+        var xMap = function(d) {return xScale(xValue(d)); };
+        var xAxis = d3.svg.axis().scale(xScale).orient("bottom");
+
+        // Set up the y-axis
+        var yValue = function(d) {return d["y"];};
+        var yScale = d3.scale.linear().range([height, 0]);
+        var yMap = function(d) {return yScale(yValue(d)); };
+        var yAxis = d3.svg.axis().scale(yScale).orient("left");
+
+        var tooltip = d3.select("body").append("div")
+                .attr("class", "tooltip")
+                .style("opacity", 0);
+
+        xScale.domain([d3.min(newdata, xValue)-3, d3.max(newdata, xValue)+3]);
+        yScale.domain([d3.min(newdata, yValue)-3, d3.max(newdata, yValue)+3]);
+
+        // x-axis
+
+        var xGroup = canvas2.append("g")
+                .attr("class", "x axis")
+                .attr("transform", "translate(0," + 197 + ")")
+              .append("text")
+                .attr("class","label")
+                .attr("x", width-padding-padding)
+                .attr("y", -6)
+                .style("text-anchor", "end")
+              
+        canvas2.select(".x.axis").transition().select("text").text("x");
+        canvas2.select(".x.axis").transition().duration(300).call(xAxis);
+
+        // y-axis
+
+        var yGroup = canvas2.append("g")
+                .attr("class", "y axis")
+                .attr("transform", "translate(-1" + 0 + ")")
+              .append("text")
+                .attr("class", "label")
+                .attr("transform", "rotate(-90)")
+                .attr("y", 6)
+                .attr("dy", ".71em")
+                .style("text-anchor", "end");
+        
+        canvas2.select(".y.axis").transition().duration(300).call(yAxis);
+        canvas2.select(".y.axis").transition().select("text").text("y");
+
+        var varDots = canvas2.selectAll(".dot")
+                  .data(newdata);        
+
+        varDots.enter()
+             .append("circle")
+             .attr("class", "dot")
+             .attr("r", 3.5)
+             .style("fill", "#E86189");
+
+        varDots.transition()
+             .attr("cx", xMap)
+             .attr("cy", yMap)
+             .style("fill", "#E86189");
+
+        varDots
+        .on("mouseover", function(d) {
+          tooltip.transition()
+           .duration(200)
+           .style("opacity", .9);
+          tooltip.html("<b>(" + d3.round(xValue(d),2) + ", " + d3.round(yValue(d),2) + ")</b>")
+            .style("left", (d3.event.pageX + 6) + "px")
+            .style("top", (d3.event.pageY - 20) + "px");
+         })
+        .on("mouseout", function(d) {
+          tooltip.transition()
+           .duration(500)
+           .style("opacity", 0);
+        });
+
+        d3.selectAll("#mdstitle").transition().text("MDS Display of the Attributes");
+
+      });
+    };
+
+    // PARALLEL COORDS
+
+    var widthp = 600;
+    var heightp = 210;
+    var paddingp = 25;
+    var marginBottomp = 10;
+
+    var title3 = d3.select("#pararea").append("p")
+                 .attr("id", "paratitle")
+                 .text("Parallel Coordinates");
+
+        var canvas3 = d3.select("#pararea").append("svg")
+                .attr("width", widthp)
+                .attr("height", heightp + paddingp)
+                .append("g")
+                    .attr("transform", "translate(" + -30 + "," + 10 + ")");
+        drawPara();
+
+    function drawPara() {
+
+      var x = d3.scale.ordinal()
+                  .rangePoints([0, widthp-paddingp], 1);
+      var y = {};
+
+      var line = d3.svg.line();
+      var axis = d3.svg.axis()
+                 .orient("left");
+                 
+      var foreground;
+
+      // Create a scale for each dimension that is read in from the file
+
+      d3.csv('sixcolsnew.csv', function(error, matches) {
+          x.domain(dimensions = d3.keys(matches[0]).filter(function(d) {
+              return d && (y[d] = d3.scale.linear()
+                  .domain(d3.extent(matches, function(p) { return +p[d]; }))
+                  .range([heightp, 0]));
+          }));
+          
+          // Grey background lines
+
+          var background = canvas3.append("g")
+                           .attr("class", "background")
+                           .selectAll("path")
+                           .data(matches)
+                           .enter()
+                           .append("path")
+                           .attr("d", path);
+
+          // Blue foreground lines
+          foreground = canvas3.append("g")
+                           .attr("class", "foreground")
+                           .selectAll("path")
+                           .data(matches)
+                           .enter().append("path")
+                           .attr("d", path);
+
+          // Add group element for each dimension
+
+          var group = canvas3.selectAll(".dimension")
+                      .data(dimensions)
+                      .enter()
+                      .append("g")
+                      .attr("class", "dimension")
+                      .attr("transform", function(d) { return "translate(" + x(d) + ")"; });
+
+          // Add the axis and title
+
+          group.append("g")
+           .attr("class", "axis")
+           .each(function(d) { d3.select(this).call(axis.scale(y[d])); })
+           .append("text")
+           .style("text-anchor", "middle")
+           .attr("y", -9)
+           .text(function(d) { return d; });
+
+          // Add the brush
+
+          group.append("g")
+           .attr("class", "brush")
+           .each(function(d) { d3.select(this).call(y[d].brush = d3.svg.brush().y(y[d]).on("brush", brush)); })
+           .selectAll("rect")
+           .attr("x", -8)
+           .attr("width", 16);
+      });
+
+      function path(d) {
+          return line(dimensions.map(function(p) { return [x(p), y[p](d[p])]; }));
+      }
+
+      function brush() {
+          var actives = dimensions.filter(function(p) { return !y[p].brush.empty(); }),
+              extents = actives.map(function(p) { return y[p].brush.extent(); });
+          var activevars = actives;
+          foreground.style("display", function(d) {
+              return actives.every(function(p, i) {
+                  return extents[i][0] <= d[p] && d[p] <= extents[i][1];
+              }) ? null : "none";
+          });
+
+          selectedDims = activevars;
+          selectedRanges = extents;
+          drawMDS();
+          drawScatMat();
+          if(activevars.length > 0) {
+            selectedRangeDims = extents[0];
+            for(i = 0; i < descriptions.length; i++) {
+              if(attributes[i] === activevars[0]) {
+                drawBar(activevars[0], descriptions[i]);
+                break;
+              }
+            }
+            selectedRangeDims = extents[0];
+          }
+      }
+
+    };
+
+    </script>
+  </body>
+</html>
